@@ -35,9 +35,15 @@ function App() {
     const savedCodeword = getCookie('gameCodeword');
     const savedPlayerName = getCookie('playerName');
     
+    console.log('Loading cookies on mount:', { savedCodeword, savedPlayerName });
+    console.log('All cookies:', document.cookie);
+    
     if (savedCodeword && savedPlayerName) {
       setCodeword(savedCodeword);
       setPlayerName(savedPlayerName);
+      console.log('Loaded session from cookies');
+    } else {
+      console.log('No valid session cookies found');
     }
   }, []);
 
@@ -81,21 +87,25 @@ function App() {
       setIsAdmin(data.isAdmin);
       setPlayerId(data.playerId);
       setError(null);
-      // Save to cookies
+      // Save to cookies - use current playerName state or get from input
+      const nameToSave = playerName || document.querySelector<HTMLInputElement>('#playerName')?.value || '';
       setCookie('gameCodeword', data.codeword);
-      setCookie('playerName', playerName);
+      setCookie('playerName', nameToSave);
       setCookie('oldPlayerId', data.playerId);
+      console.log('Cookies saved on session-created:', { codeword: data.codeword, playerName: nameToSave });
     });
 
     socket.on('join-success', (data: { isAdmin: boolean; playerId: string }) => {
       setIsAdmin(data.isAdmin);
       setPlayerId(data.playerId);
       setError(null);
-      // Save to cookies
+      // Save to cookies - use current state values
       if (codeword) {
+        const nameToSave = playerName || document.querySelector<HTMLInputElement>('#playerName')?.value || '';
         setCookie('gameCodeword', codeword);
-        setCookie('playerName', playerName);
+        setCookie('playerName', nameToSave);
         setCookie('oldPlayerId', data.playerId);
+        console.log('Cookies saved on join-success:', { codeword, playerName: nameToSave });
       }
     });
     
