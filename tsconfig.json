@@ -12,7 +12,7 @@
     "resolveJsonModule": true,
     "moduleResolution": "node"
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/server.ts", "src/types.ts", "src/gameManager.ts"],
+  "exclude": ["node_modules", "dist", "src/client"]
 }
 

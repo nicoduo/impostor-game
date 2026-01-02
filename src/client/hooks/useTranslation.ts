@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Language, Translations, getTranslation } from '../translations';
+import { Language, Translations, getTranslation, translations } from '../translations';
 import { GameSession } from '../../types';
 
 export function useTranslation(gameState: GameSession | null): {
@@ -9,7 +9,7 @@ export function useTranslation(gameState: GameSession | null): {
   const language = useMemo(() => {
     if (!gameState) {
       // Try to detect browser language
-      const browserLang = navigator.language.split('-')[0];
+      const browserLang = typeof navigator !== 'undefined' ? navigator.language.split('-')[0] : 'en';
       const langMap: Record<string, Language> = {
         'es': 'Spanish',
         'fr': 'French',
