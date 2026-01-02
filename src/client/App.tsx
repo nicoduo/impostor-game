@@ -23,6 +23,7 @@ function App() {
   const [isConnected, setIsConnected] = useState(false);
   const { t } = useTranslation(gameState);
   const tRef = useRef(t);
+  const reconnectAttemptedRef = useRef(false);
   
   // Keep ref updated
   useEffect(() => {
@@ -45,22 +46,30 @@ function App() {
       setIsConnected(true);
       console.log('Connected to server');
       
-      // Try to reconnect to previous session
-      const savedCodeword = getCookie('gameCodeword');
-      const savedPlayerName = getCookie('playerName');
-      
-      if (savedCodeword && savedPlayerName) {
-        console.log('Attempting to reconnect to session:', savedCodeword);
-        socket.emit('rejoin-session', {
-          codeword: savedCodeword,
-          playerName: savedPlayerName
-        });
+      // Try to reconnect to previous session (only once per connection)
+      if (!reconnectAttemptedRef.current) {
+        reconnectAttemptedRef.current = true;
+        const savedCodeword = getCookie('gameCodeword');
+        const savedPlayerName = getCookie('playerName');
+        
+        if (savedCodeword && savedPlayerName) {
+          console.log('Attempting to reconnect to session:', savedCodeword, 'as', savedPlayerName);
+          // Small delay to ensure socket is fully connected
+          setTimeout(() => {
+            socket.emit('rejoin-session', {
+              codeword: savedCodeword,
+              playerName: savedPlayerName
+            });
+          }, 100);
+        }
       }
     });
 
     socket.on('disconnect', () => {
       setIsConnected(false);
       console.log('Disconnected from server');
+      // Reset reconnect flag so we can try again on next connection
+      reconnectAttemptedRef.current = false;
     });
 
     socket.on('session-created', (data: { codeword: string; isAdmin: boolean; playerId: string }) => {
@@ -92,14 +101,24 @@ function App() {
       setError(null);
       // Cookies already set, just update playerId
       setCookie('oldPlayerId', data.playerId);
+      // Don't clear gameState here - wait for game-state event
+      console.log('Rejoin successful, waiting for game state...');
     });
     
     socket.on('rejoin-error', (data: { message: string }) => {
-      // Clear cookies if rejoin failed
-      clearSessionCookies();
-      setError(data.message);
-      setGameState(null);
-      setCodeword('');
+      console.error('Rejoin error:', data.message);
+      // Only clear cookies if it's a definitive error (session not found, etc.)
+      // Don't clear on "player not found" during gameplay - they might still be able to rejoin
+      if (data.message.includes('Session not found') || data.message.includes('Invalid')) {
+        clearSessionCookies();
+        setError(data.message);
+        setGameState(null);
+        setCodeword('');
+      } else {
+        // For other errors, just show the error but keep cookies
+        // This allows retry
+        setError(data.message);
+      }
     });
 
     socket.on('join-error', (data: { message: string }) => {
@@ -123,6 +142,8 @@ function App() {
         players: playersMap
       };
       setGameState(gameState);
+      setError(null); // Clear any errors when we receive game state
+      console.log('Game state received, stage:', gameState.stage);
     });
 
     socket.on('session-ended', () => {

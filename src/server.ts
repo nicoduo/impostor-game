@@ -117,7 +117,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Try to find existing player by name
+    // Try to find existing player by name (check all players, including those with old socket IDs)
     let existingPlayer: Player | undefined;
     let oldPlayerId: string | undefined;
     
@@ -131,20 +131,27 @@ io.on('connection', (socket) => {
 
     if (existingPlayer && oldPlayerId) {
       // Update player's socket ID to the new connection
-      session.players.delete(oldPlayerId);
-      existingPlayer.id = socket.id;
-      session.players.set(socket.id, existingPlayer);
+      // Only delete if it's a different socket ID
+      if (oldPlayerId !== socket.id) {
+        session.players.delete(oldPlayerId);
+        existingPlayer.id = socket.id;
+        session.players.set(socket.id, existingPlayer);
+      }
       
       socket.join(data.codeword);
+      
+      // Send rejoin-success first
       socket.emit('rejoin-success', { 
         isAdmin: existingPlayer.isAdmin, 
         playerId: socket.id 
       });
+      
+      // Then send game state - this is critical for the client to know the current state
       socket.emit('game-state', serializeGameState(session));
       
       // Notify other players
       io.to(data.codeword).emit('game-state', serializeGameState(session));
-      console.log(`${data.playerName} rejoined session ${data.codeword}`);
+      console.log(`${data.playerName} rejoined session ${data.codeword} (stage: ${session.stage})`);
     } else {
       // Player not found, check if we can add them
       if (session.stage === GameStage.LOBBY) {
@@ -162,8 +169,9 @@ io.on('connection', (socket) => {
         io.to(data.codeword).emit('game-state', serializeGameState(session));
         console.log(`${data.playerName} joined session ${data.codeword} (new player)`);
       } else {
-        // Game in progress and player not found
-        socket.emit('rejoin-error', { message: 'Game already in progress and player not found' });
+        // Game in progress and player not found - allow rejoin anyway if they have the right name
+        // This handles the case where player was removed on disconnect but should be able to rejoin
+        socket.emit('rejoin-error', { message: 'Player not found in session. Please rejoin with the correct name.' });
       }
     }
   });
@@ -276,7 +284,7 @@ io.on('connection', (socket) => {
     console.log('Client disconnected:', socket.id);
     
     // Find player in sessions
-    // Don't immediately remove - allow time for reconnection
+    // During gameplay, keep players in session so they can rejoin
     for (const [codeword, session] of sessions.entries()) {
       if (session.players.has(socket.id)) {
         const player = session.players.get(socket.id);
@@ -295,11 +303,19 @@ io.on('connection', (socket) => {
               }
             }
           }, 60000); // 60 second grace period for admin
-        } else {
-          // For regular players, remove them but they can rejoin if game allows
-          // The rejoin mechanism will handle reconnection by name
-          session.players.delete(socket.id);
-          io.to(codeword).emit('game-state', serializeGameState(session));
+        } else if (player) {
+          // For regular players during gameplay, keep them in the session
+          // They can rejoin by name. Only remove if game is in lobby or finished.
+          if (session.stage === GameStage.LOBBY || session.stage === GameStage.FINISHED) {
+            // Remove from lobby/finished stages
+            session.players.delete(socket.id);
+            io.to(codeword).emit('game-state', serializeGameState(session));
+          } else {
+            // During active gameplay (WORD_ENTRY, WAITING_WORDS, PLAYING), 
+            // keep player in session - they can rejoin with same name
+            // The socket ID will be updated when they rejoin
+            console.log(`Player ${player.name} disconnected during gameplay, keeping in session for rejoin`);
+          }
         }
         break;
       }
