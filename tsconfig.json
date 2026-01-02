@@ -13,6 +13,6 @@
     "moduleResolution": "node"
   },
   "include": ["src/server.ts", "src/types.ts", "src/gameManager.ts"],
-  "exclude": ["node_modules", "dist", "src/client"]
+  "exclude": ["node_modules", "dist", "src/client", "**/client/**", "**/*.tsx"]
 }
 

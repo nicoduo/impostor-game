@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": [
+    "src/server.ts",
+    "src/types.ts",
+    "src/gameManager.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/client",
+    "**/client/**",
+    "**/*.tsx",
+    "**/vite.config.ts"
+  ]
+}
+
