@@ -3,8 +3,9 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import path from 'path';
-import { GameSession, GameStage, Player, WordEntry } from './types';
-import { generateCodeword, createGameSession } from './gameManager';
+import { GameSession, GameStage, Player, WordEntry, Language } from './types';
+import { createGameSession } from './gameManager';
+import { generateCodeword } from './wordLists';
 
 const app = express();
 const httpServer = createServer(app);
@@ -61,9 +62,12 @@ function serializeGameState(session: GameSession): any {
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
-  socket.on('create-session', (data: { playerName: string }) => {
-    const codeword = generateCodeword();
+  socket.on('create-session', (data: { playerName: string; language?: Language }) => {
+    const language = (data.language || 'English') as Language;
+    const codeword = generateCodeword(language).toLowerCase();
     const session = createGameSession(codeword, socket.id, data.playerName);
+    // Set the language in session settings
+    session.settings.language = language;
     sessions.set(codeword, session);
     
     socket.join(codeword);

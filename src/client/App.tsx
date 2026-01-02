@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { GameSession, GameStage, Player, WordEntry } from '../types';
+import { GameSession, GameStage, Player, WordEntry, Language } from '../types';
 import Lobby from './components/Lobby';
 import Settings from './components/Settings';
 import WordEntryStage from './components/WordEntryStage';
@@ -97,7 +97,16 @@ function App() {
       setError(t('enterYourName'));
       return;
     }
-    socket.emit('create-session', { playerName: playerName.trim() });
+    // Get the language from browser or default to English
+    const browserLang = typeof navigator !== 'undefined' ? navigator.language.split('-')[0] : 'en';
+    const langMap: Record<string, Language> = {
+      'es': 'Spanish',
+      'fr': 'French',
+      'de': 'German',
+      'en': 'English'
+    };
+    const language = langMap[browserLang] || 'English';
+    socket.emit('create-session', { playerName: playerName.trim(), language });
   };
 
   const handleJoinSession = () => {

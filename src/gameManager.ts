@@ -10,7 +10,9 @@ const CATEGORIES = [
   'Vehicles'
 ];
 
+// This function is now in wordLists.ts, keeping for backwards compatibility
 export function generateCodeword(): string {
+  // This should not be used anymore, but keeping for compatibility
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let codeword = '';
   for (let i = 0; i < 6; i++) {
