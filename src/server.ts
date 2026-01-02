@@ -110,19 +110,24 @@ io.on('connection', (socket) => {
   });
 
   socket.on('rejoin-session', (data: { codeword: string; playerName: string }) => {
+    console.log(`Rejoin attempt: codeword=${data.codeword}, playerName=${data.playerName}, socketId=${socket.id}`);
     const session = sessions.get(data.codeword);
     
     if (!session) {
+      console.log(`Session not found for codeword: ${data.codeword}`);
       socket.emit('rejoin-error', { message: 'Session not found' });
       return;
     }
 
-    // Try to find existing player by name (check all players, including those with old socket IDs)
+    console.log(`Session found. Stage: ${session.stage}, Players: ${Array.from(session.players.values()).map(p => `${p.name}(${p.id})`).join(', ')}`);
+
+    // Try to find existing player by name (case-insensitive, trimmed)
     let existingPlayer: Player | undefined;
     let oldPlayerId: string | undefined;
+    const normalizedName = data.playerName.trim();
     
     for (const [playerId, player] of session.players.entries()) {
-      if (player.name === data.playerName) {
+      if (player.name.trim().toLowerCase() === normalizedName.toLowerCase()) {
         existingPlayer = player;
         oldPlayerId = playerId;
         break;
@@ -130,12 +135,14 @@ io.on('connection', (socket) => {
     }
 
     if (existingPlayer && oldPlayerId) {
+      console.log(`Found existing player: ${existingPlayer.name}, oldId=${oldPlayerId}, newId=${socket.id}`);
       // Update player's socket ID to the new connection
       // Only delete if it's a different socket ID
       if (oldPlayerId !== socket.id) {
         session.players.delete(oldPlayerId);
         existingPlayer.id = socket.id;
         session.players.set(socket.id, existingPlayer);
+        console.log(`Updated player socket ID from ${oldPlayerId} to ${socket.id}`);
       }
       
       socket.join(data.codeword);
@@ -151,8 +158,9 @@ io.on('connection', (socket) => {
       
       // Notify other players
       io.to(data.codeword).emit('game-state', serializeGameState(session));
-      console.log(`${data.playerName} rejoined session ${data.codeword} (stage: ${session.stage})`);
+      console.log(`${data.playerName} successfully rejoined session ${data.codeword} (stage: ${session.stage})`);
     } else {
+      console.log(`Player ${data.playerName} not found in session. Stage: ${session.stage}`);
       // Player not found, check if we can add them
       if (session.stage === GameStage.LOBBY) {
         // Allow joining as new player if in lobby
@@ -166,12 +174,13 @@ io.on('connection', (socket) => {
         session.players.set(socket.id, player);
         socket.join(data.codeword);
         socket.emit('rejoin-success', { isAdmin: false, playerId: socket.id });
+        socket.emit('game-state', serializeGameState(session));
         io.to(data.codeword).emit('game-state', serializeGameState(session));
-        console.log(`${data.playerName} joined session ${data.codeword} (new player)`);
+        console.log(`${data.playerName} joined session ${data.codeword} (new player in lobby)`);
       } else {
-        // Game in progress and player not found - allow rejoin anyway if they have the right name
-        // This handles the case where player was removed on disconnect but should be able to rejoin
-        socket.emit('rejoin-error', { message: 'Player not found in session. Please rejoin with the correct name.' });
+        // Game in progress and player not found
+        console.log(`Cannot rejoin: Game in progress (${session.stage}) and player not found`);
+        socket.emit('rejoin-error', { message: `Player "${data.playerName}" not found in session. Game is in progress.` });
       }
     }
   });

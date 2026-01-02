@@ -54,13 +54,17 @@ function App() {
         
         if (savedCodeword && savedPlayerName) {
           console.log('Attempting to reconnect to session:', savedCodeword, 'as', savedPlayerName);
+          console.log('Cookies found - codeword:', savedCodeword, 'playerName:', savedPlayerName);
           // Small delay to ensure socket is fully connected
           setTimeout(() => {
+            console.log('Emitting rejoin-session event...');
             socket.emit('rejoin-session', {
-              codeword: savedCodeword,
-              playerName: savedPlayerName
+              codeword: savedCodeword.trim().toLowerCase(),
+              playerName: savedPlayerName.trim()
             });
-          }, 100);
+          }, 200);
+        } else {
+          console.log('No saved session found in cookies');
         }
       }
     });
