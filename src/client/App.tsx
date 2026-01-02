@@ -119,7 +119,7 @@ function App() {
       return;
     }
     socket.emit('join-session', {
-      codeword: codeword.trim().toUpperCase(),
+      codeword: codeword.trim().toLowerCase(),
       playerName: playerName.trim()
     });
   };
@@ -154,10 +154,10 @@ function App() {
             id="codeword"
             type="text"
             value={codeword}
-            onChange={(e) => setCodeword(e.target.value.toUpperCase())}
+            onChange={(e) => setCodeword(e.target.value.toLowerCase())}
             placeholder={t('enterCodeword')}
-            maxLength={6}
-            style={{ textTransform: 'uppercase' }}
+            maxLength={10}
+            style={{ textTransform: 'lowercase' }}
           />
         </div>
         {codeword ? (
@@ -179,7 +179,7 @@ function App() {
       {codeword && (
         <div className="codeword-display">
           <div>{t('sessionCode')}:</div>
-          <div className="code">{codeword}</div>
+          <div className="code" style={{ textTransform: 'capitalize' }}>{codeword}</div>
         </div>
       )}
       {error && <div className="error">{error}</div>}
