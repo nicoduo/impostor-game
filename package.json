@@ -4,9 +4,10 @@
   "description": "Multiplayer Impostor game",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc",
+    "build": "npm run build:server && npm run build:client",
+    "build:server": "tsc",
     "build:client": "vite build",
-    "build:all": "npm run build && npm run build:client",
+    "build:all": "npm run build:server && npm run build:client",
     "start": "NODE_ENV=production node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "dev:client": "vite"
