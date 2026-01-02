@@ -1,5 +1,8 @@
 import { Language } from './types';
 
+// Re-export for convenience
+export type { Language };
+
 // Word lists - 5 letters or shorter, easy to pronounce and share
 const WORD_LISTS: Record<Language, string[]> = {
   English: [

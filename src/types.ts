@@ -6,6 +6,8 @@ export enum GameStage {
   FINISHED = 'finished'
 }
 
+export type Language = 'English' | 'Spanish' | 'French' | 'German';
+
 export interface WordEntry {
   word: string;
   category: string;
