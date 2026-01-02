@@ -135,6 +135,17 @@ function App() {
   if (!gameState) {
     return (
       <div className="container">
+        <img 
+          src="/IMG_7604.png" 
+          alt="Impostor Game" 
+          style={{ 
+            maxWidth: '300px', 
+            width: '100%', 
+            height: 'auto', 
+            marginBottom: '20px',
+            borderRadius: '12px'
+          }} 
+        />
         <h1>{t('gameTitle')}</h1>
         {error && <div className="error">{error}</div>}
         <div className="form-group">

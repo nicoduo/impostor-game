@@ -38,6 +38,10 @@ if (process.env.NODE_ENV === 'production') {
     if (req.path.startsWith('/socket.io')) {
       return next();
     }
+    // Skip static assets (images, etc.)
+    if (req.path.match(/\.(png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|eot)$/)) {
+      return next();
+    }
     res.sendFile(path.join(clientPath, 'index.html'));
   });
 }
