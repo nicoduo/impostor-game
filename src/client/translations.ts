@@ -42,6 +42,14 @@ export interface Translations {
   gameInProgress: string;
   sessionEnded: string;
   sessionCode: string;
+  categorySport: string;
+  categoryFood: string;
+  categoryShopping: string;
+  categoryNature: string;
+  categoryDestination: string;
+  categoryTechnology: string;
+  categoryVehicles: string;
+  categoryCelebrities: string;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -86,7 +94,15 @@ export const translations: Record<Language, Translations> = {
     invalidCodeword: 'Invalid codeword',
     gameInProgress: 'Game already in progress',
     sessionEnded: 'Session ended by admin',
-    sessionCode: 'Session Code'
+    sessionCode: 'Session Code',
+    categorySport: 'Sport',
+    categoryFood: 'Food',
+    categoryShopping: 'Shopping',
+    categoryNature: 'Nature',
+    categoryDestination: 'Destination',
+    categoryTechnology: 'Technology',
+    categoryVehicles: 'Vehicles',
+    categoryCelebrities: 'Celebrities'
   },
   Spanish: {
     gameTitle: '🎭 Juego del Impostor',
@@ -129,7 +145,15 @@ export const translations: Record<Language, Translations> = {
     invalidCodeword: 'Código inválido',
     gameInProgress: 'El juego ya está en progreso',
     sessionEnded: 'Sesión terminada por el administrador',
-    sessionCode: 'Código de Sesión'
+    sessionCode: 'Código de Sesión',
+    categorySport: 'Deporte',
+    categoryFood: 'Comida',
+    categoryShopping: 'Compras',
+    categoryNature: 'Naturaleza',
+    categoryDestination: 'Destino',
+    categoryTechnology: 'Tecnología',
+    categoryVehicles: 'Vehículos',
+    categoryCelebrities: 'Celebridades'
   },
   French: {
     gameTitle: '🎭 Jeu de l\'Imposteur',
@@ -172,7 +196,15 @@ export const translations: Record<Language, Translations> = {
     invalidCodeword: 'Code invalide',
     gameInProgress: 'Le jeu est déjà en cours',
     sessionEnded: 'Session terminée par l\'administrateur',
-    sessionCode: 'Code de Session'
+    sessionCode: 'Code de Session',
+    categorySport: 'Sport',
+    categoryFood: 'Nourriture',
+    categoryShopping: 'Shopping',
+    categoryNature: 'Nature',
+    categoryDestination: 'Destination',
+    categoryTechnology: 'Technologie',
+    categoryVehicles: 'Véhicules',
+    categoryCelebrities: 'Célébrités'
   },
   German: {
     gameTitle: '🎭 Impostor-Spiel',
@@ -215,7 +247,15 @@ export const translations: Record<Language, Translations> = {
     invalidCodeword: 'Ungültiger Code',
     gameInProgress: 'Spiel läuft bereits',
     sessionEnded: 'Sitzung vom Administrator beendet',
-    sessionCode: 'Sitzungscode'
+    sessionCode: 'Sitzungscode',
+    categorySport: 'Sport',
+    categoryFood: 'Essen',
+    categoryShopping: 'Einkaufen',
+    categoryNature: 'Natur',
+    categoryDestination: 'Reiseziel',
+    categoryTechnology: 'Technologie',
+    categoryVehicles: 'Fahrzeuge',
+    categoryCelebrities: 'Prominente'
   }
 };
 
@@ -229,5 +269,25 @@ export function getTranslation(language: Language, key: keyof Translations, para
   }
   
   return translation;
+}
+
+// Map English category names to translation keys
+const CATEGORY_MAP: Record<string, keyof Translations> = {
+  'Sport': 'categorySport',
+  'Food': 'categoryFood',
+  'Shopping': 'categoryShopping',
+  'Nature': 'categoryNature',
+  'Destination': 'categoryDestination',
+  'Technology': 'categoryTechnology',
+  'Vehicles': 'categoryVehicles',
+  'Celebrities': 'categoryCelebrities'
+};
+
+export function translateCategory(category: string, language: Language): string {
+  const key = CATEGORY_MAP[category];
+  if (key) {
+    return getTranslation(language, key);
+  }
+  return category; // Fallback to original if not found
 }
 

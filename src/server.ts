@@ -109,6 +109,65 @@ io.on('connection', (socket) => {
     console.log(`${data.playerName} joined session ${data.codeword}`);
   });
 
+  socket.on('rejoin-session', (data: { codeword: string; playerName: string }) => {
+    const session = sessions.get(data.codeword);
+    
+    if (!session) {
+      socket.emit('rejoin-error', { message: 'Session not found' });
+      return;
+    }
+
+    // Try to find existing player by name
+    let existingPlayer: Player | undefined;
+    let oldPlayerId: string | undefined;
+    
+    for (const [playerId, player] of session.players.entries()) {
+      if (player.name === data.playerName) {
+        existingPlayer = player;
+        oldPlayerId = playerId;
+        break;
+      }
+    }
+
+    if (existingPlayer && oldPlayerId) {
+      // Update player's socket ID to the new connection
+      session.players.delete(oldPlayerId);
+      existingPlayer.id = socket.id;
+      session.players.set(socket.id, existingPlayer);
+      
+      socket.join(data.codeword);
+      socket.emit('rejoin-success', { 
+        isAdmin: existingPlayer.isAdmin, 
+        playerId: socket.id 
+      });
+      socket.emit('game-state', serializeGameState(session));
+      
+      // Notify other players
+      io.to(data.codeword).emit('game-state', serializeGameState(session));
+      console.log(`${data.playerName} rejoined session ${data.codeword}`);
+    } else {
+      // Player not found, check if we can add them
+      if (session.stage === GameStage.LOBBY) {
+        // Allow joining as new player if in lobby
+        const player: Player = {
+          id: socket.id,
+          name: data.playerName,
+          isAdmin: false,
+          words: [],
+          isReady: false
+        };
+        session.players.set(socket.id, player);
+        socket.join(data.codeword);
+        socket.emit('rejoin-success', { isAdmin: false, playerId: socket.id });
+        io.to(data.codeword).emit('game-state', serializeGameState(session));
+        console.log(`${data.playerName} joined session ${data.codeword} (new player)`);
+      } else {
+        // Game in progress and player not found
+        socket.emit('rejoin-error', { message: 'Game already in progress and player not found' });
+      }
+    }
+  });
+
   socket.on('update-settings', (data: {
     codeword: string;
     numImpostors: number;
@@ -216,15 +275,29 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
     
-    // Find and remove player from sessions
+    // Find player in sessions
+    // Don't immediately remove - allow time for reconnection
     for (const [codeword, session] of sessions.entries()) {
       if (session.players.has(socket.id)) {
         const player = session.players.get(socket.id);
         if (player?.isAdmin) {
-          // If admin disconnects, end session
-          sessions.delete(codeword);
-          io.to(codeword).emit('session-ended');
+          // If admin disconnects, give them time to reconnect before ending session
+          setTimeout(() => {
+            const currentSession = sessions.get(codeword);
+            if (currentSession) {
+              // Check if admin has reconnected with a different socket ID
+              const adminStillConnected = Array.from(currentSession.players.values())
+                .some(p => p.isAdmin && p.name === player.name && p.id !== socket.id);
+              if (!adminStillConnected) {
+                // Admin didn't reconnect, end session
+                sessions.delete(codeword);
+                io.to(codeword).emit('session-ended');
+              }
+            }
+          }, 60000); // 60 second grace period for admin
         } else {
+          // For regular players, remove them but they can rejoin if game allows
+          // The rejoin mechanism will handle reconnection by name
           session.players.delete(socket.id);
           io.to(codeword).emit('game-state', serializeGameState(session));
         }

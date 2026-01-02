@@ -1,13 +1,27 @@
-import { GameSession, GameStage, GameSettings } from './types';
+import { GameSession, GameStage, GameSettings, Language } from './types';
 
-const CATEGORIES = [
+// Category keys (used internally, will be translated on client)
+const CATEGORY_KEYS = [
+  'categorySport',
+  'categoryFood',
+  'categoryShopping',
+  'categoryNature',
+  'categoryDestination',
+  'categoryTechnology',
+  'categoryVehicles',
+  'categoryCelebrities'
+];
+
+// Default English categories (for server-side use)
+const CATEGORIES_EN = [
   'Sport',
   'Food',
   'Shopping',
   'Nature',
   'Destination',
   'Technology',
-  'Vehicles'
+  'Vehicles',
+  'Celebrities'
 ];
 
 // This function is now in wordLists.ts, keeping for backwards compatibility
@@ -21,8 +35,15 @@ export function generateCodeword(): string {
   return codeword;
 }
 
-export function getRandomCategory(): string {
-  return CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
+export function getRandomCategory(language: Language = 'English'): string {
+  // For server-side, we use English categories
+  // The client will translate them based on the game language
+  return CATEGORIES_EN[Math.floor(Math.random() * CATEGORIES_EN.length)];
+}
+
+export function getCategoryKey(category: string): string {
+  const index = CATEGORIES_EN.indexOf(category);
+  return index >= 0 ? CATEGORY_KEYS[index] : 'categorySport';
 }
 
 export function createGameSession(
@@ -66,5 +87,5 @@ export function getGameSession(codeword: string): GameSession | undefined {
   return undefined; // Implemented in server.ts
 }
 
-export { CATEGORIES };
+export { CATEGORIES_EN as CATEGORIES };
 

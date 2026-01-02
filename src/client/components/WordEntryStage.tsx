@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Socket } from 'socket.io-client';
-import { GameSession, Player, WordEntry } from '../../types';
-import { Translations } from '../translations';
+import { GameSession, Player, WordEntry, Language } from '../../types';
+import { Translations, translateCategory } from '../translations';
 
-const CATEGORIES = [
+// English categories (used for random selection, will be translated on display)
+const CATEGORIES_EN = [
   'Sport',
   'Food',
   'Shopping',
   'Nature',
   'Destination',
   'Technology',
-  'Vehicles'
+  'Vehicles',
+  'Celebrities'
 ];
 
 const getRandomCategory = (): string => {
-  return CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
+  return CATEGORIES_EN[Math.floor(Math.random() * CATEGORIES_EN.length)];
 };
 
 interface WordEntryStageProps {
@@ -34,28 +36,43 @@ const WordEntryStage: React.FC<WordEntryStageProps> = ({
 }) => {
   const [words, setWords] = useState<WordEntry[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [categoryKeys, setCategoryKeys] = useState<string[]>([]); // Store English keys for server
+
+  const language = gameState.settings.language as Language;
 
   useEffect(() => {
     const numWords = gameState.settings.wordsPerPlayer;
-    const newCategories: string[] = [];
+    const newCategoryKeys: string[] = [];
     for (let i = 0; i < numWords; i++) {
-      newCategories.push(getRandomCategory());
+      newCategoryKeys.push(getRandomCategory());
     }
-    setCategories(newCategories);
+    setCategoryKeys(newCategoryKeys);
+    
+    // Translate categories for display
+    const translatedCategories = newCategoryKeys.map(cat => translateCategory(cat, language));
+    setCategories(translatedCategories);
+    
     setWords(Array(numWords).fill(null).map(() => ({ word: '', category: '' })));
-  }, [gameState.settings.wordsPerPlayer]);
+  }, [gameState.settings.wordsPerPlayer, language]);
 
   useEffect(() => {
     if (currentPlayer?.words && currentPlayer.words.length > 0) {
       setWords(currentPlayer.words);
+      // Extract English category keys from player words
+      const keys = currentPlayer.words.map(w => w.category);
+      setCategoryKeys(keys);
+      // Translate for display
+      const translated = keys.map(k => translateCategory(k, language));
+      setCategories(translated);
     }
-  }, [currentPlayer]);
+  }, [currentPlayer, language]);
 
   const handleWordChange = (index: number, value: string) => {
     const newWords = [...words];
+    // Store the English category key, not the translated version
     newWords[index] = {
       word: value,
-      category: categories[index]
+      category: categoryKeys[index] // Store English key for server
     };
     setWords(newWords);
   };
@@ -94,7 +111,7 @@ const WordEntryStage: React.FC<WordEntryStageProps> = ({
               type="text"
               value={wordEntry.word}
               onChange={(e) => handleWordChange(index, e.target.value)}
-              placeholder={`${t('enterYourWords')} ${t('word')} ${t('category').toLowerCase()} ${categories[index]}`}
+              placeholder={`${t('word')} ${t('category').toLowerCase()} ${categories[index]}`}
               maxLength={50}
             />
           </div>
@@ -108,4 +125,3 @@ const WordEntryStage: React.FC<WordEntryStageProps> = ({
 };
 
 export default WordEntryStage;
-

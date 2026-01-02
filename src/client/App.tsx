@@ -28,10 +28,33 @@ function App() {
     tRef.current = t;
   }, [t]);
 
+  // Load saved session from cookies on mount
+  useEffect(() => {
+    const savedCodeword = getCookie('gameCodeword');
+    const savedPlayerName = getCookie('playerName');
+    
+    if (savedCodeword && savedPlayerName) {
+      setCodeword(savedCodeword);
+      setPlayerName(savedPlayerName);
+    }
+  }, []);
+
   useEffect(() => {
     socket.on('connect', () => {
       setIsConnected(true);
       console.log('Connected to server');
+      
+      // Try to reconnect to previous session
+      const savedCodeword = getCookie('gameCodeword');
+      const savedPlayerName = getCookie('playerName');
+      
+      if (savedCodeword && savedPlayerName) {
+        console.log('Attempting to reconnect to session:', savedCodeword);
+        socket.emit('rejoin-session', {
+          codeword: savedCodeword,
+          playerName: savedPlayerName
+        });
+      }
     });
 
     socket.on('disconnect', () => {
@@ -44,12 +67,38 @@ function App() {
       setIsAdmin(data.isAdmin);
       setPlayerId(data.playerId);
       setError(null);
+      // Save to cookies
+      setCookie('gameCodeword', data.codeword);
+      setCookie('playerName', playerName);
+      setCookie('oldPlayerId', data.playerId);
     });
 
     socket.on('join-success', (data: { isAdmin: boolean; playerId: string }) => {
       setIsAdmin(data.isAdmin);
       setPlayerId(data.playerId);
       setError(null);
+      // Save to cookies
+      if (codeword) {
+        setCookie('gameCodeword', codeword);
+        setCookie('playerName', playerName);
+        setCookie('oldPlayerId', data.playerId);
+      }
+    });
+    
+    socket.on('rejoin-success', (data: { isAdmin: boolean; playerId: string }) => {
+      setIsAdmin(data.isAdmin);
+      setPlayerId(data.playerId);
+      setError(null);
+      // Cookies already set, just update playerId
+      setCookie('oldPlayerId', data.playerId);
+    });
+    
+    socket.on('rejoin-error', (data: { message: string }) => {
+      // Clear cookies if rejoin failed
+      clearSessionCookies();
+      setError(data.message);
+      setGameState(null);
+      setCodeword('');
     });
 
     socket.on('join-error', (data: { message: string }) => {
@@ -79,6 +128,7 @@ function App() {
       setError(tRef.current('sessionEnded'));
       setGameState(null);
       setCodeword('');
+      clearSessionCookies();
     });
 
     return () => {
@@ -87,6 +137,8 @@ function App() {
       socket.off('session-created');
       socket.off('join-success');
       socket.off('join-error');
+      socket.off('rejoin-success');
+      socket.off('rejoin-error');
       socket.off('game-state');
       socket.off('session-ended');
     };
@@ -198,7 +250,12 @@ function App() {
       {error && <div className="error">{error}</div>}
 
       {gameState.stage === GameStage.LOBBY && (
-        <Lobby gameState={gameState} socket={socket} isAdmin={isAdmin} t={t} />
+        <>
+          {isAdmin && (
+            <Settings gameState={gameState} socket={socket} codeword={codeword} t={t} />
+          )}
+          <Lobby gameState={gameState} socket={socket} isAdmin={isAdmin} t={t} />
+        </>
       )}
 
       {gameState.stage === GameStage.WORD_ENTRY && (
