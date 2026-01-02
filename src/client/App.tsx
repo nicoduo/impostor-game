@@ -7,6 +7,7 @@ import WordEntryStage from './components/WordEntryStage';
 import WaitingRoom from './components/WaitingRoom';
 import GameRound from './components/GameRound';
 import { useTranslation } from './hooks/useTranslation';
+import { setCookie, getCookie, clearSessionCookies } from './utils/cookies';
 import './index.css';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
