@@ -26,11 +26,17 @@ app.use(express.json());
 
 // Serve static files from client build in production
 if (process.env.NODE_ENV === 'production') {
-  const clientPath = path.join(__dirname, '../client');
+  const clientPath = path.join(__dirname, 'client');
+  console.log('Serving static files from:', clientPath);
   app.use(express.static(clientPath));
   
-  // Serve index.html for all routes (SPA routing)
-  app.get('*', (req, res) => {
+  // Serve index.html for all non-API routes (SPA routing)
+  // This must be after all other routes
+  app.get('*', (req, res, next) => {
+    // Skip API routes and socket.io
+    if (req.path.startsWith('/socket.io')) {
+      return next();
+    }
     res.sendFile(path.join(clientPath, 'index.html'));
   });
 }
