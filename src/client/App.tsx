@@ -156,8 +156,20 @@ function App() {
         players: playersMap
       };
       setGameState(gameState);
+      // Update codeword if it changed
+      if (state.codeword && state.codeword !== codeword) {
+        setCodeword(state.codeword);
+        setCookie('gameCodeword', state.codeword);
+        console.log('Codeword updated to:', state.codeword);
+      }
       setError(null); // Clear any errors when we receive game state
       console.log('Game state received, stage:', gameState.stage);
+    });
+
+    socket.on('codeword-updated', (data: { newCodeword: string }) => {
+      setCodeword(data.newCodeword);
+      setCookie('gameCodeword', data.newCodeword);
+      console.log('Codeword updated via event:', data.newCodeword);
     });
 
     socket.on('session-ended', () => {
@@ -176,6 +188,7 @@ function App() {
       socket.off('rejoin-success');
       socket.off('rejoin-error');
       socket.off('game-state');
+      socket.off('codeword-updated');
       socket.off('session-ended');
     };
   }, []);
@@ -295,18 +308,13 @@ function App() {
       )}
 
       {gameState.stage === GameStage.WORD_ENTRY && (
-        <>
-          {isAdmin && (
-            <Settings gameState={gameState} socket={socket} codeword={codeword} t={t} />
-          )}
-          <WordEntryStage
-            gameState={gameState}
-            socket={socket}
-            codeword={codeword}
-            currentPlayer={currentPlayer}
-            t={t}
-          />
-        </>
+        <WordEntryStage
+          gameState={gameState}
+          socket={socket}
+          codeword={codeword}
+          currentPlayer={currentPlayer}
+          t={t}
+        />
       )}
 
       {gameState.stage === GameStage.WAITING_WORDS && (
@@ -328,8 +336,40 @@ function App() {
         <div className="waiting-message">
           <h2>{t('gameFinished')}</h2>
           {isAdmin && (
-            <button onClick={() => socket.emit('restart-game', { codeword })}>
-              {t('restartGame')}
+            <>
+              <button onClick={() => socket.emit('restart-game', { codeword })}>
+                {t('restartGame')}
+              </button>
+              <button 
+                onClick={() => {
+                  clearSessionCookies();
+                  setGameState(null);
+                  setCodeword('');
+                  setPlayerName('');
+                  setPlayerId(null);
+                  setIsAdmin(false);
+                  setError(null);
+                }}
+                style={{ marginTop: '12px', background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}
+              >
+                {t('startNewGame')}
+              </button>
+            </>
+          )}
+          {!isAdmin && (
+            <button 
+              onClick={() => {
+                clearSessionCookies();
+                setGameState(null);
+                setCodeword('');
+                setPlayerName('');
+                setPlayerId(null);
+                setIsAdmin(false);
+                setError(null);
+              }}
+              style={{ marginTop: '12px', background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}
+            >
+              {t('startNewGame')}
             </button>
           )}
         </div>

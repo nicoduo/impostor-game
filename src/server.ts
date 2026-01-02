@@ -197,12 +197,47 @@ io.on('connection', (socket) => {
       return;
     }
 
+    const oldLanguage = session.settings.language;
+    const newLanguage = data.language as Language;
+
     session.settings.numImpostors = data.numImpostors;
     session.settings.wordsPerPlayer = data.wordsPerPlayer;
     session.settings.usersEnterWords = data.usersEnterWords;
-    session.settings.language = data.language;
+    session.settings.language = newLanguage;
 
-    io.to(data.codeword).emit('game-state', serializeGameState(session));
+    // If language changed, generate new codeword in the new language
+    if (oldLanguage !== newLanguage && session.stage === GameStage.LOBBY) {
+      const oldCodeword = session.codeword;
+      const newCodeword = generateCodeword(newLanguage).toLowerCase();
+      
+      // Update session codeword
+      session.codeword = newCodeword;
+      
+      // Update sessions map - remove old, add new
+      sessions.delete(oldCodeword);
+      sessions.set(newCodeword, session);
+      
+      // Move all sockets to the new room
+      const room = io.sockets.adapter.rooms.get(oldCodeword);
+      if (room) {
+        for (const socketId of room) {
+          const s = io.sockets.sockets.get(socketId);
+          if (s) {
+            s.leave(oldCodeword);
+            s.join(newCodeword);
+          }
+        }
+      }
+      
+      // Notify all players about the new codeword
+      io.to(newCodeword).emit('codeword-updated', { newCodeword });
+      io.to(newCodeword).emit('game-state', serializeGameState(session));
+      
+      console.log(`Codeword updated from ${oldCodeword} to ${newCodeword} (language: ${oldLanguage} -> ${newLanguage})`);
+    } else {
+      // Just update settings without changing codeword
+      io.to(data.codeword).emit('game-state', serializeGameState(session));
+    }
   });
 
   socket.on('start-game', (data: { codeword: string }) => {

@@ -37,6 +37,7 @@ export interface Translations {
   nextRound: string;
   gameFinished: string;
   restartGame: string;
+  startNewGame: string;
   connecting: string;
   invalidCodeword: string;
   gameInProgress: string;
@@ -90,6 +91,7 @@ export const translations: Record<Language, Translations> = {
     nextRound: 'Next Round',
     gameFinished: 'Game Finished!',
     restartGame: 'Restart Game',
+    startNewGame: 'Start a New Game from Scratch',
     connecting: 'Connecting to server...',
     invalidCodeword: 'Invalid codeword',
     gameInProgress: 'Game already in progress',
@@ -141,6 +143,7 @@ export const translations: Record<Language, Translations> = {
     nextRound: 'Siguiente Ronda',
     gameFinished: '¡Juego Terminado!',
     restartGame: 'Reiniciar Juego',
+    startNewGame: 'Comenzar un Nuevo Juego desde Cero',
     connecting: 'Conectando al servidor...',
     invalidCodeword: 'Código inválido',
     gameInProgress: 'El juego ya está en progreso',
@@ -192,6 +195,7 @@ export const translations: Record<Language, Translations> = {
     nextRound: 'Round Suivant',
     gameFinished: 'Jeu Terminé!',
     restartGame: 'Redémarrer le Jeu',
+    startNewGame: 'Commencer un Nouveau Jeu depuis le Début',
     connecting: 'Connexion au serveur...',
     invalidCodeword: 'Code invalide',
     gameInProgress: 'Le jeu est déjà en cours',
@@ -243,6 +247,7 @@ export const translations: Record<Language, Translations> = {
     nextRound: 'Nächste Runde',
     gameFinished: 'Spiel Beendet!',
     restartGame: 'Spiel Neustarten',
+    startNewGame: 'Ein Neues Spiel von Grund auf Starten',
     connecting: 'Verbindung zum Server...',
     invalidCodeword: 'Ungültiger Code',
     gameInProgress: 'Spiel läuft bereits',
