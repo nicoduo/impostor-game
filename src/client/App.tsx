@@ -317,13 +317,20 @@ function App() {
       )}
 
       {gameState.stage === GameStage.WORD_ENTRY && (
-        <WordEntryStage
-          gameState={gameState}
-          socket={socket}
-          codeword={codeword}
-          currentPlayer={currentPlayer}
-          t={t}
-        />
+        <>
+          {/* Show waiting room view if player has submitted words */}
+          {currentPlayer?.isReady ? (
+            <WaitingRoom gameState={gameState} socket={socket} isAdmin={isAdmin} codeword={codeword} t={t} />
+          ) : (
+            <WordEntryStage
+              gameState={gameState}
+              socket={socket}
+              codeword={codeword}
+              currentPlayer={currentPlayer}
+              t={t}
+            />
+          )}
+        </>
       )}
 
       {gameState.stage === GameStage.WAITING_WORDS && (

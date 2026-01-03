@@ -46,6 +46,9 @@ const WaitingRoom: React.FC<WaitingRoomProps> = ({ gameState, socket, isAdmin, c
       ) : (
         <div className="waiting-message">
           <p>{t('waitingForPlayers')}</p>
+          <p style={{ marginTop: '8px', fontSize: '0.9rem', color: '#666' }}>
+            {readyPlayers.length} / {players.length} {t('wordsSubmitted').toLowerCase()}
+          </p>
         </div>
       )}
 
