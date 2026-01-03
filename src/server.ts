@@ -310,12 +310,20 @@ io.on('connection', (socket) => {
   });
 
   socket.on('submit-words', (data: { codeword: string; words: WordEntry[] }) => {
+    console.log(`[submit-words] Received from socket ${socket.id}, codeword: ${data.codeword}`);
     const session = sessions.get(data.codeword);
-    if (!session) return;
+    if (!session) {
+      console.error(`[submit-words] Session not found for codeword: ${data.codeword}`);
+      return;
+    }
 
     const player = session.players.get(socket.id);
-    if (!player) return;
+    if (!player) {
+      console.error(`[submit-words] Player not found in session for socket: ${socket.id}`);
+      return;
+    }
 
+    console.log(`[submit-words] Player ${player.name} submitting ${data.words.length} words`);
     player.words = data.words;
     player.isReady = true;
 
@@ -325,13 +333,24 @@ io.on('connection', (socket) => {
       session.wordPool.push(...p.words);
     });
 
+    console.log(`[submit-words] Word pool now has ${session.wordPool.length} words`);
+
     // Check if all players are ready
     const allReady = Array.from(session.players.values()).every((p) => p.isReady);
+    const readyCount = Array.from(session.players.values()).filter((p) => p.isReady).length;
+    const totalCount = session.players.size;
+    
+    console.log(`[submit-words] Ready status: ${readyCount}/${totalCount} players ready, allReady: ${allReady}`);
+    
     if (allReady) {
       session.stage = GameStage.WAITING_WORDS;
+      console.log(`[submit-words] All players ready, moving to WAITING_WORDS stage`);
     }
 
+    // Always broadcast game-state to all players so waiting room updates in real-time
+    console.log(`[submit-words] Broadcasting game-state to room: ${data.codeword}`);
     io.to(data.codeword).emit('game-state', serializeGameState(session));
+    console.log(`[submit-words] Game-state broadcasted successfully`);
   });
 
   socket.on('next-round', (data: { codeword: string }) => {

@@ -16,11 +16,24 @@ const WaitingRoom: React.FC<WaitingRoomProps> = ({ gameState, socket, isAdmin, c
     socket.emit('start-game', { codeword });
   };
 
+  // Recalculate players lists whenever gameState changes
+  // This ensures the component updates when game-state is received
   const players = Array.from(gameState.players.values());
   const readyPlayers = players.filter(p => p.isReady);
   const notReadyPlayers = players.filter(p => !p.isReady);
 
   const allReady = notReadyPlayers.length === 0;
+  
+  // Log for debugging
+  React.useEffect(() => {
+    console.log('[WaitingRoom] Player status updated:', {
+      total: players.length,
+      ready: readyPlayers.length,
+      notReady: notReadyPlayers.length,
+      readyNames: readyPlayers.map(p => p.name),
+      notReadyNames: notReadyPlayers.map(p => p.name)
+    });
+  }, [players.length, readyPlayers.length, notReadyPlayers.length]);
 
   return (
     <div>
