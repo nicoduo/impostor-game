@@ -192,23 +192,68 @@ io.on('connection', (socket) => {
     usersEnterWords: boolean;
     language: string;
   }) => {
-    const session = sessions.get(data.codeword);
-    if (!session || !session.players.get(socket.id)?.isAdmin) {
+    console.log(`[update-settings] Received from socket ${socket.id}:`, data);
+    
+    // Try to find session by codeword
+    let session = sessions.get(data.codeword);
+    
+    // If not found, try to find by checking all sessions for this socket's player
+    if (!session) {
+      console.log(`[update-settings] Session not found for codeword: ${data.codeword}, searching by socket...`);
+      for (const [codeword, sess] of sessions.entries()) {
+        if (sess.players.has(socket.id)) {
+          session = sess;
+          console.log(`[update-settings] Found session by socket: ${codeword}`);
+          break;
+        }
+      }
+    }
+    
+    if (!session) {
+      console.error(`[update-settings] Session not found for codeword: ${data.codeword}, socket: ${socket.id}`);
       return;
     }
+    
+    const player = session.players.get(socket.id);
+    if (!player) {
+      console.error(`[update-settings] Player not found in session for socket: ${socket.id}`);
+      return;
+    }
+    
+    if (!player.isAdmin) {
+      console.warn(`[update-settings] Non-admin player ${player.name} (${socket.id}) attempted to update settings`);
+      return;
+    }
+    
+    console.log(`[update-settings] Admin ${player.name} updating settings. Current settings:`, {
+      numImpostors: session.settings.numImpostors,
+      wordsPerPlayer: session.settings.wordsPerPlayer,
+      usersEnterWords: session.settings.usersEnterWords,
+      language: session.settings.language
+    });
 
     const oldLanguage = session.settings.language;
     const newLanguage = data.language as Language;
 
+    // Update settings
     session.settings.numImpostors = data.numImpostors;
     session.settings.wordsPerPlayer = data.wordsPerPlayer;
     session.settings.usersEnterWords = data.usersEnterWords;
     session.settings.language = newLanguage;
+    
+    console.log(`[update-settings] Settings updated to:`, {
+      numImpostors: session.settings.numImpostors,
+      wordsPerPlayer: session.settings.wordsPerPlayer,
+      usersEnterWords: session.settings.usersEnterWords,
+      language: session.settings.language
+    });
 
     // If language changed, generate new codeword in the new language
     if (oldLanguage !== newLanguage && session.stage === GameStage.LOBBY) {
       const oldCodeword = session.codeword;
       const newCodeword = generateCodeword(newLanguage).toLowerCase();
+      
+      console.log(`[update-settings] Language changed from ${oldLanguage} to ${newLanguage}, updating codeword from ${oldCodeword} to ${newCodeword}`);
       
       // Update session codeword
       session.codeword = newCodeword;
@@ -220,6 +265,7 @@ io.on('connection', (socket) => {
       // Move all sockets to the new room
       const room = io.sockets.adapter.rooms.get(oldCodeword);
       if (room) {
+        console.log(`[update-settings] Moving ${room.size} sockets from room ${oldCodeword} to ${newCodeword}`);
         for (const socketId of room) {
           const s = io.sockets.sockets.get(socketId);
           if (s) {
@@ -233,10 +279,13 @@ io.on('connection', (socket) => {
       io.to(newCodeword).emit('codeword-updated', { newCodeword });
       io.to(newCodeword).emit('game-state', serializeGameState(session));
       
-      console.log(`Codeword updated from ${oldCodeword} to ${newCodeword} (language: ${oldLanguage} -> ${newLanguage})`);
+      console.log(`[update-settings] Codeword updated and game-state broadcasted to all players`);
     } else {
       // Just update settings without changing codeword
-      io.to(data.codeword).emit('game-state', serializeGameState(session));
+      const targetCodeword = session.codeword; // Use current session codeword (might have changed)
+      console.log(`[update-settings] Broadcasting game-state to room: ${targetCodeword}`);
+      io.to(targetCodeword).emit('game-state', serializeGameState(session));
+      console.log(`[update-settings] Game-state broadcasted successfully`);
     }
   });
 

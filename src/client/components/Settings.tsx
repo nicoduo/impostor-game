@@ -24,6 +24,13 @@ const Settings: React.FC<SettingsProps> = ({ gameState, socket, codeword, t }) =
   }, [gameState.settings]);
 
   const handleUpdateSettings = () => {
+    console.log('Settings: Updating settings with values:', {
+      codeword,
+      numImpostors,
+      wordsPerPlayer,
+      usersEnterWords,
+      language
+    });
     socket.emit('update-settings', {
       codeword,
       numImpostors,

@@ -146,6 +146,13 @@ function App() {
     });
 
     socket.on('game-state', (state: any) => {
+      console.log('[game-state] Received game state:', {
+        codeword: state.codeword,
+        stage: state.stage,
+        settings: state.settings,
+        playerCount: Object.keys(state.players || {}).length
+      });
+      
       // Convert players object to Map for React state
       const playersMap = new Map<string, Player>();
       Object.entries(state.players).forEach(([id, player]) => {
@@ -156,14 +163,16 @@ function App() {
         players: playersMap
       };
       setGameState(gameState);
+      
       // Update codeword if it changed
       if (state.codeword && state.codeword !== codeword) {
+        console.log(`[game-state] Codeword changed from ${codeword} to ${state.codeword}`);
         setCodeword(state.codeword);
         setCookie('gameCodeword', state.codeword);
-        console.log('Codeword updated to:', state.codeword);
       }
+      
       setError(null); // Clear any errors when we receive game state
-      console.log('Game state received, stage:', gameState.stage);
+      console.log('[game-state] Game state updated in UI, stage:', gameState.stage);
     });
 
     socket.on('codeword-updated', (data: { newCodeword: string }) => {
