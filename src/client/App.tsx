@@ -8,6 +8,7 @@ import WaitingRoom from './components/WaitingRoom';
 import GameRound from './components/GameRound';
 import { useTranslation } from './hooks/useTranslation';
 import { setCookie, getCookie, clearSessionCookies } from './utils/cookies';
+import { setSessionInUrl, getSessionFromUrl, clearSessionFromUrl } from './utils/urlParams';
 import './index.css';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
@@ -30,8 +31,21 @@ function App() {
     tRef.current = t;
   }, [t]);
 
-  // Load saved session from cookies on mount
+  // Load saved session from URL or cookies on mount
   useEffect(() => {
+    // Priority 1: Check URL parameters
+    const urlSession = getSessionFromUrl();
+    if (urlSession.codeword && urlSession.playerName) {
+      setCodeword(urlSession.codeword);
+      setPlayerName(urlSession.playerName);
+      // Also save to cookies as backup
+      setCookie('gameCodeword', urlSession.codeword);
+      setCookie('playerName', urlSession.playerName);
+      console.log('Loaded session from URL');
+      return;
+    }
+    
+    // Priority 2: Check cookies
     const savedCodeword = getCookie('gameCodeword');
     const savedPlayerName = getCookie('playerName');
     
@@ -41,9 +55,11 @@ function App() {
     if (savedCodeword && savedPlayerName) {
       setCodeword(savedCodeword);
       setPlayerName(savedPlayerName);
-      console.log('Loaded session from cookies');
+      // Update URL to match cookies
+      setSessionInUrl(savedCodeword, savedPlayerName);
+      console.log('Loaded session from cookies and updated URL');
     } else {
-      console.log('No valid session cookies found');
+      console.log('No valid session found in URL or cookies');
     }
   }, []);
 
@@ -55,22 +71,35 @@ function App() {
       // Try to reconnect to previous session (only once per connection)
       if (!reconnectAttemptedRef.current) {
         reconnectAttemptedRef.current = true;
-        const savedCodeword = getCookie('gameCodeword');
-        const savedPlayerName = getCookie('playerName');
+        
+        // Priority 1: Check URL parameters
+        const urlSession = getSessionFromUrl();
+        let savedCodeword = urlSession.codeword;
+        let savedPlayerName = urlSession.playerName;
+        
+        // Priority 2: Fall back to cookies
+        if (!savedCodeword || !savedPlayerName) {
+          savedCodeword = getCookie('gameCodeword');
+          savedPlayerName = getCookie('playerName');
+          // If found in cookies but not URL, update URL
+          if (savedCodeword && savedPlayerName) {
+            setSessionInUrl(savedCodeword, savedPlayerName);
+          }
+        }
         
         if (savedCodeword && savedPlayerName) {
           console.log('Attempting to reconnect to session:', savedCodeword, 'as', savedPlayerName);
-          console.log('Cookies found - codeword:', savedCodeword, 'playerName:', savedPlayerName);
+          console.log('Session found - codeword:', savedCodeword, 'playerName:', savedPlayerName);
           // Small delay to ensure socket is fully connected
           setTimeout(() => {
             console.log('Emitting rejoin-session event...');
             socket.emit('rejoin-session', {
-              codeword: savedCodeword.trim().toLowerCase(),
-              playerName: savedPlayerName.trim()
+              codeword: savedCodeword!.trim().toLowerCase(),
+              playerName: savedPlayerName!.trim()
             });
           }, 200);
         } else {
-          console.log('No saved session found in cookies');
+          console.log('No saved session found in URL or cookies');
         }
       }
     });
@@ -87,25 +116,27 @@ function App() {
       setIsAdmin(data.isAdmin);
       setPlayerId(data.playerId);
       setError(null);
-      // Save to cookies - use current playerName state or get from input
+      // Save to cookies and URL - use current playerName state or get from input
       const nameToSave = playerName || document.querySelector<HTMLInputElement>('#playerName')?.value || '';
       setCookie('gameCodeword', data.codeword);
       setCookie('playerName', nameToSave);
       setCookie('oldPlayerId', data.playerId);
-      console.log('Cookies saved on session-created:', { codeword: data.codeword, playerName: nameToSave });
+      setSessionInUrl(data.codeword, nameToSave);
+      console.log('Session saved to cookies and URL on session-created:', { codeword: data.codeword, playerName: nameToSave });
     });
 
     socket.on('join-success', (data: { isAdmin: boolean; playerId: string }) => {
       setIsAdmin(data.isAdmin);
       setPlayerId(data.playerId);
       setError(null);
-      // Save to cookies - use current state values
+      // Save to cookies and URL - use current state values
       if (codeword) {
         const nameToSave = playerName || document.querySelector<HTMLInputElement>('#playerName')?.value || '';
         setCookie('gameCodeword', codeword);
         setCookie('playerName', nameToSave);
         setCookie('oldPlayerId', data.playerId);
-        console.log('Cookies saved on join-success:', { codeword, playerName: nameToSave });
+        setSessionInUrl(codeword, nameToSave);
+        console.log('Session saved to cookies and URL on join-success:', { codeword, playerName: nameToSave });
       }
     });
     
@@ -113,23 +144,30 @@ function App() {
       setIsAdmin(data.isAdmin);
       setPlayerId(data.playerId);
       setError(null);
-      // Cookies already set, just update playerId
+      // Cookies and URL already set, just update playerId
       setCookie('oldPlayerId', data.playerId);
+      // Ensure URL is up to date
+      const currentCodeword = codeword || getCookie('gameCodeword');
+      const currentPlayerName = playerName || getCookie('playerName');
+      if (currentCodeword && currentPlayerName) {
+        setSessionInUrl(currentCodeword, currentPlayerName);
+      }
       // Don't clear gameState here - wait for game-state event
       console.log('Rejoin successful, waiting for game state...');
     });
     
     socket.on('rejoin-error', (data: { message: string }) => {
       console.error('Rejoin error:', data.message);
-      // Only clear cookies if it's a definitive error (session not found, etc.)
+      // Only clear cookies and URL if it's a definitive error (session not found, etc.)
       // Don't clear on "player not found" during gameplay - they might still be able to rejoin
       if (data.message.includes('Session not found') || data.message.includes('Invalid')) {
         clearSessionCookies();
+        clearSessionFromUrl();
         setError(data.message);
         setGameState(null);
         setCodeword('');
       } else {
-        // For other errors, just show the error but keep cookies
+        // For other errors, just show the error but keep cookies and URL
         // This allows retry
         setError(data.message);
       }
@@ -169,6 +207,11 @@ function App() {
         console.log(`[game-state] Codeword changed from ${codeword} to ${state.codeword}`);
         setCodeword(state.codeword);
         setCookie('gameCodeword', state.codeword);
+        // Update URL with new codeword
+        const currentPlayerName = playerName || getCookie('playerName');
+        if (currentPlayerName) {
+          setSessionInUrl(state.codeword, currentPlayerName);
+        }
       }
       
       setError(null); // Clear any errors when we receive game state
@@ -178,6 +221,11 @@ function App() {
     socket.on('codeword-updated', (data: { newCodeword: string }) => {
       setCodeword(data.newCodeword);
       setCookie('gameCodeword', data.newCodeword);
+      // Update URL with new codeword
+      const currentPlayerName = playerName || getCookie('playerName');
+      if (currentPlayerName) {
+        setSessionInUrl(data.newCodeword, currentPlayerName);
+      }
       console.log('Codeword updated via event:', data.newCodeword);
     });
 
@@ -186,6 +234,7 @@ function App() {
       setGameState(null);
       setCodeword('');
       clearSessionCookies();
+      clearSessionFromUrl();
     });
 
     return () => {
@@ -356,16 +405,17 @@ function App() {
               <button onClick={() => socket.emit('restart-game', { codeword })}>
                 {t('restartGame')}
               </button>
-              <button 
-                onClick={() => {
-                  clearSessionCookies();
-                  setGameState(null);
-                  setCodeword('');
-                  setPlayerName('');
-                  setPlayerId(null);
-                  setIsAdmin(false);
-                  setError(null);
-                }}
+            <button 
+              onClick={() => {
+                clearSessionCookies();
+                clearSessionFromUrl();
+                setGameState(null);
+                setCodeword('');
+                setPlayerName('');
+                setPlayerId(null);
+                setIsAdmin(false);
+                setError(null);
+              }}
                 style={{ marginTop: '12px', background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}
               >
                 {t('startNewGame')}
@@ -376,6 +426,7 @@ function App() {
             <button 
               onClick={() => {
                 clearSessionCookies();
+                clearSessionFromUrl();
                 setGameState(null);
                 setCodeword('');
                 setPlayerName('');
