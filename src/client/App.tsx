@@ -128,11 +128,14 @@ function App() {
       setError(null);
       // Save to cookies and URL - use current playerName state or get from input
       const nameToSave = playerName || document.querySelector<HTMLInputElement>('#playerName')?.value || '';
+      
+      // Update URL and cookies immediately
+      setSessionInUrl(data.codeword, nameToSave);
       setCookie('gameCodeword', data.codeword);
       setCookie('playerName', nameToSave);
       setCookie('oldPlayerId', data.playerId);
-      setSessionInUrl(data.codeword, nameToSave);
-      console.log('Session saved to cookies and URL on session-created:', { codeword: data.codeword, playerName: nameToSave });
+      
+      console.log('[session-created] URL and cookies updated immediately:', { codeword: data.codeword, playerName: nameToSave });
     });
 
     socket.on('join-success', (data: { isAdmin: boolean; playerId: string }) => {
@@ -140,13 +143,14 @@ function App() {
       setPlayerId(data.playerId);
       setError(null);
       // Save to cookies and URL - use current state values
+      // Note: URL should already be updated in handleJoinSession, but update again to be sure
       if (codeword) {
         const nameToSave = playerName || document.querySelector<HTMLInputElement>('#playerName')?.value || '';
+        setSessionInUrl(codeword, nameToSave);
         setCookie('gameCodeword', codeword);
         setCookie('playerName', nameToSave);
         setCookie('oldPlayerId', data.playerId);
-        setSessionInUrl(codeword, nameToSave);
-        console.log('Session saved to cookies and URL on join-success:', { codeword, playerName: nameToSave });
+        console.log('[join-success] URL and cookies updated:', { codeword, playerName: nameToSave });
       }
     });
     
@@ -275,6 +279,7 @@ function App() {
       'en': 'English'
     };
     const language = langMap[browserLang] || 'English';
+    // URL will be updated when session-created event is received
     socket.emit('create-session', { playerName: playerName.trim(), language });
   };
 
@@ -287,9 +292,18 @@ function App() {
       setError(t('enterCodeword'));
       return;
     }
+    const trimmedCodeword = codeword.trim().toLowerCase();
+    const trimmedPlayerName = playerName.trim();
+    
+    // Update URL immediately when joining
+    setSessionInUrl(trimmedCodeword, trimmedPlayerName);
+    setCookie('gameCodeword', trimmedCodeword);
+    setCookie('playerName', trimmedPlayerName);
+    console.log('[handleJoinSession] URL and cookies updated immediately:', { codeword: trimmedCodeword, playerName: trimmedPlayerName });
+    
     socket.emit('join-session', {
-      codeword: codeword.trim().toLowerCase(),
-      playerName: playerName.trim()
+      codeword: trimmedCodeword,
+      playerName: trimmedPlayerName
     });
   };
 
