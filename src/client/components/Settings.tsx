@@ -58,14 +58,99 @@ const Settings: React.FC<SettingsProps> = ({ gameState, socket, codeword, t }) =
       <h2>{t('gameSettings')}</h2>
       <div className="form-group">
         <label htmlFor="numImpostors">{t('numberOfImpostors')}</label>
-        <input
-          id="numImpostors"
-          type="number"
-          min="1"
-          max={gameState.players.size - 1}
-          value={numImpostors}
-          onChange={(e) => setNumImpostors(parseInt(e.target.value) || 1)}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              const newValue = Math.max(1, numImpostors - 1);
+              setNumImpostors(newValue);
+            }}
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '8px',
+              border: '2px solid #ddd',
+              background: '#fff',
+              fontSize: '1.5rem',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: numImpostors <= 1 ? '#ccc' : '#333',
+              transition: 'all 0.2s ease'
+            }}
+            disabled={numImpostors <= 1}
+            onMouseEnter={(e) => {
+              if (numImpostors > 1) {
+                e.currentTarget.style.background = '#f0f0f0';
+                e.currentTarget.style.borderColor = '#999';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (numImpostors > 1) {
+                e.currentTarget.style.background = '#fff';
+                e.currentTarget.style.borderColor = '#ddd';
+              }
+            }}
+          >
+            −
+          </button>
+          <div
+            style={{
+              minWidth: '60px',
+              textAlign: 'center',
+              fontSize: '1.2rem',
+              fontWeight: 'bold',
+              padding: '8px 16px',
+              background: '#f5f5f5',
+              borderRadius: '8px',
+              border: '2px solid #ddd'
+            }}
+          >
+            {numImpostors}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const maxImpostors = Math.max(1, gameState.players.size - 1);
+              const newValue = Math.min(maxImpostors, numImpostors + 1);
+              setNumImpostors(newValue);
+            }}
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '8px',
+              border: '2px solid #ddd',
+              background: '#fff',
+              fontSize: '1.5rem',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: numImpostors >= Math.max(1, gameState.players.size - 1) ? '#ccc' : '#333',
+              transition: 'all 0.2s ease'
+            }}
+            disabled={numImpostors >= Math.max(1, gameState.players.size - 1)}
+            onMouseEnter={(e) => {
+              const maxImpostors = Math.max(1, gameState.players.size - 1);
+              if (numImpostors < maxImpostors) {
+                e.currentTarget.style.background = '#f0f0f0';
+                e.currentTarget.style.borderColor = '#999';
+              }
+            }}
+            onMouseLeave={(e) => {
+              const maxImpostors = Math.max(1, gameState.players.size - 1);
+              if (numImpostors < maxImpostors) {
+                e.currentTarget.style.background = '#fff';
+                e.currentTarget.style.borderColor = '#ddd';
+              }
+            }}
+          >
+            +
+          </button>
+        </div>
       </div>
       <div className="form-group">
         <label htmlFor="wordsPerPlayer">{t('wordsPerPlayer')}</label>
