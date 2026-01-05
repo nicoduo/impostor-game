@@ -432,34 +432,12 @@ io.on('connection', (socket) => {
         
         console.log(`[disconnect] Player ${player.name} (${socket.id}) disconnected from session ${codeword}, stage: ${session.stage}`);
         
-        if (player.isAdmin) {
-          // If admin disconnects, give them time to reconnect before ending session
-          // Keep them in the session during the grace period
-          console.log(`[disconnect] Admin disconnected, starting 60s grace period`);
-          setTimeout(() => {
-            const currentSession = sessions.get(codeword);
-            if (currentSession) {
-              // Check if admin has reconnected with a different socket ID
-              const adminStillConnected = Array.from(currentSession.players.values())
-                .some(p => p.isAdmin && p.name === player.name && p.id !== socket.id);
-              if (!adminStillConnected) {
-                // Admin didn't reconnect, end session
-                console.log(`[disconnect] Admin ${player.name} did not reconnect, ending session`);
-                sessions.delete(codeword);
-                io.to(codeword).emit('session-ended');
-              } else {
-                console.log(`[disconnect] Admin ${player.name} reconnected, session continues`);
-              }
-            }
-          }, 60000); // 60 second grace period for admin
-        } else {
-          // For regular players: NEVER remove them immediately
-          // Keep them in the session - they can always rejoin by name
-          // The socket ID will be updated when they rejoin via rejoin-session
-          console.log(`[disconnect] Player ${player.name} disconnected, keeping in session for rejoin (socket ID will be updated on rejoin)`);
-          // Don't remove from session - just leave the socket ID as is
-          // When they rejoin, the rejoin handler will update the socket ID
-        }
+        // NEVER automatically end sessions - admin must explicitly exit via X button
+        // Keep ALL players (including admin) in the session for rejoin
+        // The socket ID will be updated when they rejoin via rejoin-session
+        console.log(`[disconnect] Player ${player.name} disconnected, keeping in session for rejoin (socket ID will be updated on rejoin)`);
+        // Don't remove from session - just leave the socket ID as is
+        // When they rejoin, the rejoin handler will update the socket ID
         break;
       }
     }
