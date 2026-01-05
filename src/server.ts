@@ -135,17 +135,22 @@ io.on('connection', (socket) => {
     }
 
     if (existingPlayer && oldPlayerId) {
-      console.log(`Found existing player: ${existingPlayer.name}, oldId=${oldPlayerId}, newId=${socket.id}`);
+      console.log(`[rejoin-session] Found existing player: ${existingPlayer.name}, oldId=${oldPlayerId}, newId=${socket.id}`);
       // Update player's socket ID to the new connection
-      // Only delete if it's a different socket ID
+      // Always update the socket ID, even if it's the same (handles edge cases)
       if (oldPlayerId !== socket.id) {
+        // Remove old socket ID entry
         session.players.delete(oldPlayerId);
-        existingPlayer.id = socket.id;
-        session.players.set(socket.id, existingPlayer);
-        console.log(`Updated player socket ID from ${oldPlayerId} to ${socket.id}`);
+        console.log(`[rejoin-session] Removed old socket ID: ${oldPlayerId}`);
       }
+      // Update player with new socket ID
+      existingPlayer.id = socket.id;
+      session.players.set(socket.id, existingPlayer);
+      console.log(`[rejoin-session] Updated player socket ID to ${socket.id}`);
       
+      // Make sure socket is in the correct room
       socket.join(data.codeword);
+      console.log(`[rejoin-session] Socket ${socket.id} joined room: ${data.codeword}`);
       
       // Send rejoin-success first
       socket.emit('rejoin-success', { 
@@ -158,7 +163,7 @@ io.on('connection', (socket) => {
       
       // Notify other players
       io.to(data.codeword).emit('game-state', serializeGameState(session));
-      console.log(`${data.playerName} successfully rejoined session ${data.codeword} (stage: ${session.stage})`);
+      console.log(`[rejoin-session] ${data.playerName} successfully rejoined session ${data.codeword} (stage: ${session.stage})`);
     } else {
       console.log(`Player ${data.playerName} not found in session. Stage: ${session.stage}`);
       // Player not found, check if we can add them
@@ -413,15 +418,24 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+    console.log(`[disconnect] Client disconnected: ${socket.id}`);
     
     // Find player in sessions
-    // During gameplay, keep players in session so they can rejoin
+    // IMPORTANT: Never immediately remove players - always keep them for potential rejoin
     for (const [codeword, session] of sessions.entries()) {
       if (session.players.has(socket.id)) {
         const player = session.players.get(socket.id);
-        if (player?.isAdmin) {
+        if (!player) {
+          console.log(`[disconnect] Player object not found for socket ${socket.id}`);
+          break;
+        }
+        
+        console.log(`[disconnect] Player ${player.name} (${socket.id}) disconnected from session ${codeword}, stage: ${session.stage}`);
+        
+        if (player.isAdmin) {
           // If admin disconnects, give them time to reconnect before ending session
+          // Keep them in the session during the grace period
+          console.log(`[disconnect] Admin disconnected, starting 60s grace period`);
           setTimeout(() => {
             const currentSession = sessions.get(codeword);
             if (currentSession) {
@@ -430,24 +444,21 @@ io.on('connection', (socket) => {
                 .some(p => p.isAdmin && p.name === player.name && p.id !== socket.id);
               if (!adminStillConnected) {
                 // Admin didn't reconnect, end session
+                console.log(`[disconnect] Admin ${player.name} did not reconnect, ending session`);
                 sessions.delete(codeword);
                 io.to(codeword).emit('session-ended');
+              } else {
+                console.log(`[disconnect] Admin ${player.name} reconnected, session continues`);
               }
             }
           }, 60000); // 60 second grace period for admin
-        } else if (player) {
-          // For regular players during gameplay, keep them in the session
-          // They can rejoin by name. Only remove if game is in lobby or finished.
-          if (session.stage === GameStage.LOBBY || session.stage === GameStage.FINISHED) {
-            // Remove from lobby/finished stages
-            session.players.delete(socket.id);
-            io.to(codeword).emit('game-state', serializeGameState(session));
-          } else {
-            // During active gameplay (WORD_ENTRY, WAITING_WORDS, PLAYING), 
-            // keep player in session - they can rejoin with same name
-            // The socket ID will be updated when they rejoin
-            console.log(`Player ${player.name} disconnected during gameplay, keeping in session for rejoin`);
-          }
+        } else {
+          // For regular players: NEVER remove them immediately
+          // Keep them in the session - they can always rejoin by name
+          // The socket ID will be updated when they rejoin via rejoin-session
+          console.log(`[disconnect] Player ${player.name} disconnected, keeping in session for rejoin (socket ID will be updated on rejoin)`);
+          // Don't remove from session - just leave the socket ID as is
+          // When they rejoin, the rejoin handler will update the socket ID
         }
         break;
       }

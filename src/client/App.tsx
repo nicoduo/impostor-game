@@ -33,15 +33,17 @@ function App() {
 
   // Load saved session from URL or cookies on mount
   useEffect(() => {
+    console.log('[mount] Loading session on component mount');
     // Priority 1: Check URL parameters
     const urlSession = getSessionFromUrl();
     if (urlSession.codeword && urlSession.playerName) {
+      console.log('[mount] Found session in URL:', urlSession);
       setCodeword(urlSession.codeword);
       setPlayerName(urlSession.playerName);
       // Also save to cookies as backup
       setCookie('gameCodeword', urlSession.codeword);
       setCookie('playerName', urlSession.playerName);
-      console.log('Loaded session from URL');
+      console.log('[mount] Loaded session from URL and saved to cookies');
       return;
     }
     
@@ -49,24 +51,24 @@ function App() {
     const savedCodeword = getCookie('gameCodeword');
     const savedPlayerName = getCookie('playerName');
     
-    console.log('Loading cookies on mount:', { savedCodeword, savedPlayerName });
-    console.log('All cookies:', document.cookie);
+    console.log('[mount] Loading from cookies:', { savedCodeword, savedPlayerName });
     
     if (savedCodeword && savedPlayerName) {
+      console.log('[mount] Found session in cookies');
       setCodeword(savedCodeword);
       setPlayerName(savedPlayerName);
       // Update URL to match cookies
       setSessionInUrl(savedCodeword, savedPlayerName);
-      console.log('Loaded session from cookies and updated URL');
+      console.log('[mount] Loaded session from cookies and updated URL');
     } else {
-      console.log('No valid session found in URL or cookies');
+      console.log('[mount] No valid session found in URL or cookies');
     }
   }, []);
 
   useEffect(() => {
     socket.on('connect', () => {
       setIsConnected(true);
-      console.log('Connected to server');
+      console.log('[connect] Connected to server, socket ID:', socket.id);
       
       // Try to reconnect to previous session (only once per connection)
       if (!reconnectAttemptedRef.current) {
@@ -87,19 +89,27 @@ function App() {
           }
         }
         
+        // Priority 3: Use current state if available
+        if (!savedCodeword && codeword) {
+          savedCodeword = codeword;
+        }
+        if (!savedPlayerName && playerName) {
+          savedPlayerName = playerName;
+        }
+        
         if (savedCodeword && savedPlayerName) {
-          console.log('Attempting to reconnect to session:', savedCodeword, 'as', savedPlayerName);
-          console.log('Session found - codeword:', savedCodeword, 'playerName:', savedPlayerName);
+          console.log('[connect] Attempting to reconnect to session:', savedCodeword, 'as', savedPlayerName);
+          console.log('[connect] Session found - codeword:', savedCodeword, 'playerName:', savedPlayerName);
           // Small delay to ensure socket is fully connected
           setTimeout(() => {
-            console.log('Emitting rejoin-session event...');
+            console.log('[connect] Emitting rejoin-session event...');
             socket.emit('rejoin-session', {
               codeword: savedCodeword!.trim().toLowerCase(),
               playerName: savedPlayerName!.trim()
             });
-          }, 200);
+          }, 300);
         } else {
-          console.log('No saved session found in URL or cookies');
+          console.log('[connect] No saved session found in URL, cookies, or state');
         }
       }
     });
