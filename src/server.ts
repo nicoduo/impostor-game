@@ -392,6 +392,26 @@ io.on('connection', (socket) => {
     io.to(data.codeword).emit('game-state', serializeGameState(session));
   });
 
+  socket.on('leave-session', (data: { codeword: string }) => {
+    console.log(`[leave-session] Player ${socket.id} leaving session ${data.codeword}`);
+    const session = sessions.get(data.codeword);
+    if (session && session.players.has(socket.id)) {
+      const player = session.players.get(socket.id);
+      if (player?.isAdmin) {
+        // Admin leaving - end session for everyone
+        sessions.delete(data.codeword);
+        io.to(data.codeword).emit('session-ended');
+        console.log(`[leave-session] Admin left, session ended`);
+      } else {
+        // Regular player leaving - remove them
+        session.players.delete(socket.id);
+        socket.leave(data.codeword);
+        io.to(data.codeword).emit('game-state', serializeGameState(session));
+        console.log(`[leave-session] Player ${player?.name} left session`);
+      }
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
     

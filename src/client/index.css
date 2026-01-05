@@ -37,6 +37,7 @@ body {
   max-width: 800px;
   width: 100%;
   overflow-x: hidden;
+  position: relative;
 }
 
 @media (min-width: 768px) {
@@ -306,6 +307,49 @@ label {
   .waiting-message {
     padding: 40px;
     font-size: 1.2rem;
+  }
+}
+
+.exit-game-button {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid #e0e0e0;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 24px;
+  font-weight: bold;
+  color: #666;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 100;
+  padding: 0;
+  line-height: 1;
+}
+
+.exit-game-button:hover {
+  background: #fee;
+  border-color: #f5576c;
+  color: #f5576c;
+  transform: scale(1.1);
+}
+
+.exit-game-button:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 767px) {
+  .exit-game-button {
+    top: 10px;
+    left: 10px;
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
   }
 }
 

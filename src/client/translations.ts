@@ -43,6 +43,7 @@ export interface Translations {
   gameInProgress: string;
   sessionEnded: string;
   sessionCode: string;
+  exitGame: string;
   categorySport: string;
   categoryFood: string;
   categoryShopping: string;
@@ -97,6 +98,7 @@ export const translations: Record<Language, Translations> = {
     gameInProgress: 'Game already in progress',
     sessionEnded: 'Session ended by admin',
     sessionCode: 'Session Code',
+    exitGame: 'Exit Game',
     categorySport: 'Sport',
     categoryFood: 'Food',
     categoryShopping: 'Shopping',
@@ -149,6 +151,7 @@ export const translations: Record<Language, Translations> = {
     gameInProgress: 'El juego ya está en progreso',
     sessionEnded: 'Sesión terminada por el administrador',
     sessionCode: 'Código de Sesión',
+    exitGame: 'Salir del Juego',
     categorySport: 'Deporte',
     categoryFood: 'Comida',
     categoryShopping: 'Compras',
@@ -201,6 +204,7 @@ export const translations: Record<Language, Translations> = {
     gameInProgress: 'Le jeu est déjà en cours',
     sessionEnded: 'Session terminée par l\'administrateur',
     sessionCode: 'Code de Session',
+    exitGame: 'Quitter le Jeu',
     categorySport: 'Sport',
     categoryFood: 'Nourriture',
     categoryShopping: 'Shopping',
@@ -253,6 +257,7 @@ export const translations: Record<Language, Translations> = {
     gameInProgress: 'Spiel läuft bereits',
     sessionEnded: 'Sitzung vom Administrator beendet',
     sessionCode: 'Sitzungscode',
+    exitGame: 'Spiel Verlassen',
     categorySport: 'Sport',
     categoryFood: 'Essen',
     categoryShopping: 'Einkaufen',

@@ -345,8 +345,35 @@ function App() {
     ? gameState.players.get(playerId)
     : undefined;
 
+  const handleExitGame = () => {
+    if (window.confirm(t('exitGame') + '?')) {
+      clearSessionCookies();
+      clearSessionFromUrl();
+      setGameState(null);
+      setCodeword('');
+      setPlayerName('');
+      setPlayerId(null);
+      setIsAdmin(false);
+      setError(null);
+      // Disconnect from current room if in a session
+      if (codeword) {
+        socket.emit('leave-session', { codeword });
+      }
+    }
+  };
+
   return (
     <div className="container">
+      {gameState && (
+        <button
+          onClick={handleExitGame}
+          className="exit-game-button"
+          title={t('exitGame')}
+          aria-label={t('exitGame')}
+        >
+          ✕
+        </button>
+      )}
       <h1>{t('gameTitle')}</h1>
       {codeword && (
         <div className="codeword-display">
