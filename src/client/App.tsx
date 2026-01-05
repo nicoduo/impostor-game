@@ -195,6 +195,9 @@ function App() {
       } else {
         setError(data.message);
       }
+      // Clear URL and cookies on join error
+      clearSessionCookies();
+      clearSessionFromUrl();
     });
 
     socket.on('game-state', (state: any) => {
@@ -431,6 +434,25 @@ function App() {
             />
           )}
         </>
+      )}
+
+      {/* Allow players who join during PLAYING to submit words */}
+      {gameState.stage === GameStage.PLAYING && !currentPlayer?.isReady && (
+        <div>
+          <div className="waiting-message" style={{ marginBottom: '24px' }}>
+            <p>{t('gameInProgress')}</p>
+            <p style={{ marginTop: '8px', fontSize: '0.9rem', color: '#888' }}>
+              {t('joinMidGameMessage')}
+            </p>
+          </div>
+          <WordEntryStage
+            gameState={gameState}
+            socket={socket}
+            codeword={codeword}
+            currentPlayer={currentPlayer}
+            t={t}
+          />
+        </div>
       )}
 
       {gameState.stage === GameStage.WAITING_WORDS && (

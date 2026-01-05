@@ -81,21 +81,32 @@ io.on('connection', (socket) => {
   });
 
   socket.on('join-session', (data: { codeword: string; playerName: string }) => {
+    console.log(`[join-session] Join attempt: codeword=${data.codeword}, playerName=${data.playerName}, socketId=${socket.id}`);
     const session = sessions.get(data.codeword);
     
     if (!session) {
+      console.log(`[join-session] Session not found for codeword: ${data.codeword}`);
       socket.emit('join-error', { message: 'Invalid codeword' });
       return;
     }
 
-    if (session.stage !== GameStage.LOBBY) {
-      socket.emit('join-error', { message: 'Game already in progress' });
+    // Check if player with same name already exists
+    const existingPlayerByName = Array.from(session.players.values())
+      .find(p => p.name.trim().toLowerCase() === data.playerName.trim().toLowerCase());
+    
+    if (existingPlayerByName) {
+      // Player with this name already exists - they should use rejoin instead
+      console.log(`[join-session] Player with name "${data.playerName}" already exists, suggesting rejoin`);
+      socket.emit('join-error', { message: 'A player with this name already exists. Please use a different name or rejoin if this is you.' });
       return;
     }
 
+    // Allow joining at any stage
+    console.log(`[join-session] Allowing join to session ${data.codeword} at stage: ${session.stage}`);
+    
     const player: Player = {
       id: socket.id,
-      name: data.playerName,
+      name: data.playerName.trim(),
       isAdmin: false,
       words: [],
       isReady: false
@@ -105,8 +116,12 @@ io.on('connection', (socket) => {
     socket.join(data.codeword);
     socket.emit('join-success', { isAdmin: false, playerId: socket.id });
     
+    // Send current game state to the new player
+    socket.emit('game-state', serializeGameState(session));
+    
+    // Notify all players about the new player
     io.to(data.codeword).emit('game-state', serializeGameState(session));
-    console.log(`${data.playerName} joined session ${data.codeword}`);
+    console.log(`[join-session] ${data.playerName} joined session ${data.codeword} at stage: ${session.stage}`);
   });
 
   socket.on('rejoin-session', (data: { codeword: string; playerName: string }) => {
@@ -165,28 +180,22 @@ io.on('connection', (socket) => {
       io.to(data.codeword).emit('game-state', serializeGameState(session));
       console.log(`[rejoin-session] ${data.playerName} successfully rejoined session ${data.codeword} (stage: ${session.stage})`);
     } else {
-      console.log(`Player ${data.playerName} not found in session. Stage: ${session.stage}`);
-      // Player not found, check if we can add them
-      if (session.stage === GameStage.LOBBY) {
-        // Allow joining as new player if in lobby
-        const player: Player = {
-          id: socket.id,
-          name: data.playerName,
-          isAdmin: false,
-          words: [],
-          isReady: false
-        };
-        session.players.set(socket.id, player);
-        socket.join(data.codeword);
-        socket.emit('rejoin-success', { isAdmin: false, playerId: socket.id });
-        socket.emit('game-state', serializeGameState(session));
-        io.to(data.codeword).emit('game-state', serializeGameState(session));
-        console.log(`${data.playerName} joined session ${data.codeword} (new player in lobby)`);
-      } else {
-        // Game in progress and player not found
-        console.log(`Cannot rejoin: Game in progress (${session.stage}) and player not found`);
-        socket.emit('rejoin-error', { message: `Player "${data.playerName}" not found in session. Game is in progress.` });
-      }
+      console.log(`[rejoin-session] Player ${data.playerName} not found in session. Stage: ${session.stage}`);
+      // Player not found - allow them to join as a new player at any stage
+      // This handles the case where someone wants to join mid-game
+      const player: Player = {
+        id: socket.id,
+        name: data.playerName.trim(),
+        isAdmin: false,
+        words: [],
+        isReady: false
+      };
+      session.players.set(socket.id, player);
+      socket.join(data.codeword);
+      socket.emit('rejoin-success', { isAdmin: false, playerId: socket.id });
+      socket.emit('game-state', serializeGameState(session));
+      io.to(data.codeword).emit('game-state', serializeGameState(session));
+      console.log(`[rejoin-session] ${data.playerName} joined session ${data.codeword} as new player (stage: ${session.stage})`);
     }
   });
 
@@ -328,7 +337,10 @@ io.on('connection', (socket) => {
       return;
     }
 
-    console.log(`[submit-words] Player ${player.name} submitting ${data.words.length} words`);
+    const wasAlreadyReady = player.isReady;
+    const oldWordPoolSize = session.wordPool.length;
+    
+    console.log(`[submit-words] Player ${player.name} submitting ${data.words.length} words (was already ready: ${wasAlreadyReady}, stage: ${session.stage})`);
     player.words = data.words;
     player.isReady = true;
 
@@ -338,7 +350,17 @@ io.on('connection', (socket) => {
       session.wordPool.push(...p.words);
     });
 
-    console.log(`[submit-words] Word pool now has ${session.wordPool.length} words`);
+    const newWordPoolSize = session.wordPool.length;
+    console.log(`[submit-words] Word pool updated: ${oldWordPoolSize} -> ${newWordPoolSize} words`);
+
+    // If game is in PLAYING stage and new words were added, update total rounds
+    if (session.stage === GameStage.PLAYING && !wasAlreadyReady && newWordPoolSize > oldWordPoolSize) {
+      // Calculate remaining rounds: words left in pool + current round
+      const remainingRounds = session.wordPool.length;
+      const roundsCompleted = session.currentRound;
+      session.totalRounds = roundsCompleted + remainingRounds;
+      console.log(`[submit-words] Updated total rounds: ${session.totalRounds} (completed: ${roundsCompleted}, remaining: ${remainingRounds})`);
+    }
 
     // Check if all players are ready
     const allReady = Array.from(session.players.values()).every((p) => p.isReady);
@@ -347,7 +369,8 @@ io.on('connection', (socket) => {
     
     console.log(`[submit-words] Ready status: ${readyCount}/${totalCount} players ready, allReady: ${allReady}`);
     
-    if (allReady) {
+    // Only transition to WAITING_WORDS if we're in WORD_ENTRY stage
+    if (session.stage === GameStage.WORD_ENTRY && allReady) {
       session.stage = GameStage.WAITING_WORDS;
       console.log(`[submit-words] All players ready, moving to WAITING_WORDS stage`);
     }
@@ -365,8 +388,9 @@ io.on('connection', (socket) => {
     }
 
     if (session.stage === GameStage.PLAYING) {
-      session.currentRound++;
-      if (session.currentRound >= session.totalRounds) {
+      // Don't increment currentRound here - startRound does it
+      // Check if we have more words in the pool
+      if (session.wordPool.length === 0) {
         session.stage = GameStage.FINISHED;
         io.to(data.codeword).emit('game-state', serializeGameState(session));
       } else {
@@ -451,6 +475,14 @@ function startRound(session: GameSession, codeword: string) {
     return;
   }
 
+  // Increment round number
+  session.currentRound++;
+  
+  // Update total rounds based on current word pool (in case new players joined and added words)
+  const remainingRounds = session.wordPool.length;
+  const roundsCompleted = session.currentRound - 1;
+  session.totalRounds = roundsCompleted + remainingRounds;
+
   // Get random word from pool
   const randomIndex = Math.floor(Math.random() * session.wordPool.length);
   const wordEntry = session.wordPool[randomIndex];
@@ -460,7 +492,7 @@ function startRound(session: GameSession, codeword: string) {
   // Remove word from pool
   session.wordPool.splice(randomIndex, 1);
 
-  // Assign impostors randomly
+  // Assign impostors randomly from all players (including those who joined mid-game)
   const playerIds = Array.from(session.players.keys());
   const impostorIds = new Set<string>();
   const numImpostors = Math.min(
@@ -474,6 +506,8 @@ function startRound(session: GameSession, codeword: string) {
   }
 
   session.currentImpostors = Array.from(impostorIds);
+
+  console.log(`[startRound] Round ${session.currentRound}/${session.totalRounds}, word: ${session.currentWord}, impostors: ${session.currentImpostors.length}`);
 
   io.to(codeword).emit('game-state', serializeGameState(session));
 }

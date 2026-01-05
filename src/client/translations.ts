@@ -41,6 +41,7 @@ export interface Translations {
   connecting: string;
   invalidCodeword: string;
   gameInProgress: string;
+  joinMidGameMessage: string;
   sessionEnded: string;
   sessionCode: string;
   exitGame: string;
@@ -96,6 +97,7 @@ export const translations: Record<Language, Translations> = {
     connecting: 'Connecting to server...',
     invalidCodeword: 'Invalid codeword',
     gameInProgress: 'Game already in progress',
+    joinMidGameMessage: 'You joined mid-game! Submit your words to participate in future rounds.',
     sessionEnded: 'Session ended by admin',
     sessionCode: 'Session Code',
     exitGame: 'Exit Game',
@@ -149,6 +151,7 @@ export const translations: Record<Language, Translations> = {
     connecting: 'Conectando al servidor...',
     invalidCodeword: 'Código inválido',
     gameInProgress: 'El juego ya está en progreso',
+    joinMidGameMessage: '¡Te uniste a mitad del juego! Envía tus palabras para participar en las siguientes rondas.',
     sessionEnded: 'Sesión terminada por el administrador',
     sessionCode: 'Código de Sesión',
     exitGame: 'Salir del Juego',
@@ -202,6 +205,7 @@ export const translations: Record<Language, Translations> = {
     connecting: 'Connexion au serveur...',
     invalidCodeword: 'Code invalide',
     gameInProgress: 'Le jeu est déjà en cours',
+    joinMidGameMessage: 'Vous avez rejoint en cours de partie ! Soumettez vos mots pour participer aux prochains tours.',
     sessionEnded: 'Session terminée par l\'administrateur',
     sessionCode: 'Code de Session',
     exitGame: 'Quitter le Jeu',
@@ -255,6 +259,7 @@ export const translations: Record<Language, Translations> = {
     connecting: 'Verbindung zum Server...',
     invalidCodeword: 'Ungültiger Code',
     gameInProgress: 'Spiel läuft bereits',
+    joinMidGameMessage: 'Sie sind mitten im Spiel beigetreten! Reichen Sie Ihre Wörter ein, um an zukünftigen Runden teilzunehmen.',
     sessionEnded: 'Sitzung vom Administrator beendet',
     sessionCode: 'Sitzungscode',
     exitGame: 'Spiel Verlassen',
