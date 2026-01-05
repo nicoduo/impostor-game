@@ -4,8 +4,9 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import path from 'path';
 import { GameSession, GameStage, Player, WordEntry, Language } from './types';
-import { createGameSession } from './gameManager';
+import { createGameSession, CATEGORIES } from './gameManager';
 import { generateCodeword } from './wordLists';
+import { generateWordPool } from './wordDatabase';
 
 const app = express();
 const httpServer = createServer(app);
@@ -310,8 +311,34 @@ io.on('connection', (socket) => {
     }
 
     if (session.stage === GameStage.LOBBY) {
-      session.stage = GameStage.WORD_ENTRY;
-      io.to(data.codeword).emit('game-state', serializeGameState(session));
+      // Check if users should enter words or if we should generate them automatically
+      if (session.settings.usersEnterWords) {
+        // Users will enter words manually
+        session.stage = GameStage.WORD_ENTRY;
+        io.to(data.codeword).emit('game-state', serializeGameState(session));
+      } else {
+        // Generate words automatically and skip to playing
+        console.log(`[start-game] Auto-generating words for ${session.players.size} players, ${session.settings.wordsPerPlayer} words each`);
+        const language = session.settings.language as Language;
+        const wordPool = generateWordPool(
+          session.players.size,
+          session.settings.wordsPerPlayer,
+          language,
+          CATEGORIES
+        );
+        session.wordPool = wordPool;
+        
+        // Mark all players as ready since words are auto-generated
+        session.players.forEach((player) => {
+          player.isReady = true;
+        });
+        
+        console.log(`[start-game] Generated ${wordPool.length} words, starting game directly`);
+        session.stage = GameStage.PLAYING;
+        session.currentRound = 0;
+        session.totalRounds = session.wordPool.length;
+        startRound(session, data.codeword);
+      }
     } else if (session.stage === GameStage.WAITING_WORDS) {
       if (session.wordPool.length === 0) {
         return;
