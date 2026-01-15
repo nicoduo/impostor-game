@@ -521,20 +521,44 @@ function startRound(session: GameSession, codeword: string) {
 
   // Assign impostors randomly from all players (including those who joined mid-game)
   const playerIds = Array.from(session.players.keys());
-  const impostorIds = new Set<string>();
-  const numImpostors = Math.min(
-    session.settings.numImpostors,
-    playerIds.length
-  );
+  
+  if (playerIds.length === 0) {
+    console.error(`[startRound] No players in session!`);
+    session.stage = GameStage.FINISHED;
+    io.to(codeword).emit('game-state', serializeGameState(session));
+    return;
+  }
 
-  while (impostorIds.size < numImpostors) {
+  // Ensure we have at least 1 impostor if there are 2+ players
+  // But never assign all players as impostors (at least 1 must be non-impostor)
+  const maxPossibleImpostors = Math.max(1, playerIds.length - 1);
+  const requestedImpostors = session.settings.numImpostors;
+  const numImpostors = Math.min(requestedImpostors, maxPossibleImpostors);
+  
+  // Ensure at least 1 impostor if we have 2+ players
+  const finalNumImpostors = playerIds.length > 1 ? Math.max(1, numImpostors) : 0;
+
+  console.log(`[startRound] Assigning impostors: ${playerIds.length} players, requested: ${requestedImpostors}, max possible: ${maxPossibleImpostors}, final: ${finalNumImpostors}`);
+
+  const impostorIds = new Set<string>();
+  
+  // Shuffle player IDs to ensure random selection
+  const shuffledPlayerIds = [...playerIds].sort(() => Math.random() - 0.5);
+  
+  // Select the first N players from the shuffled array
+  for (let i = 0; i < finalNumImpostors && i < shuffledPlayerIds.length; i++) {
+    impostorIds.add(shuffledPlayerIds[i]);
+  }
+
+  // Fallback: if we still don't have enough impostors, randomly select more
+  while (impostorIds.size < finalNumImpostors && impostorIds.size < playerIds.length) {
     const randomPlayerId = playerIds[Math.floor(Math.random() * playerIds.length)];
     impostorIds.add(randomPlayerId);
   }
 
   session.currentImpostors = Array.from(impostorIds);
 
-  console.log(`[startRound] Round ${session.currentRound}/${session.totalRounds}, word: ${session.currentWord}, impostors: ${session.currentImpostors.length}`);
+  console.log(`[startRound] Round ${session.currentRound}/${session.totalRounds}, word: ${session.currentWord}, category: ${session.currentCategory}, impostors: ${session.currentImpostors.length} (${session.currentImpostors.join(', ')})`);
 
   io.to(codeword).emit('game-state', serializeGameState(session));
 }
